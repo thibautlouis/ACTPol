@@ -1,0 +1,88 @@
+ra0 = -8
+ra1 = 41
+dec0 = -7.2
+dec1 = 4
+
+buffer=0.5
+
+seasonTags=['s2']
+arrayTags=['ar2']
+
+
+spec='d56_2xd56_2'
+
+mapDir_ar2_s2_T  =  '/project2/r/rbond/tlouis/ACTPOL_Season2/Paper/Maps/Jon/Final/deep56_S2_c7v5_AR2/'
+mapDir_ar2_s2_Pol  = '/project2/r/rbond/tlouis/ACTPOL_Season2/Paper/Maps/Jon/Final/deep56_S2_c7v5_AR2/'
+
+mapFiles_ar2_s2_T = [mapDir_ar2_s2_T+'deep56_S2_c7v5_AR2_night_nomoon_srcsub_srcpoint_noisecut_fixpickupcut_noturn_debuddyperdet_4way_set%d_2pass_wpoly_500_I_and_input.fits'%i for i in xrange(4)] 
+mapFiles_ar2_s2_Q = [mapDir_ar2_s2_T+'deep56_S2_c7v5_AR2_night_nomoon_srcsub_srcpoint_noisecut_fixpickupcut_noturn_debuddyperdet_4way_set%d_2pass_wpoly_500_Q_and_input.fits'%i for i in xrange(4)] 
+mapFiles_ar2_s2_U = [mapDir_ar2_s2_T+'deep56_S2_c7v5_AR2_night_nomoon_srcsub_srcpoint_noisecut_fixpickupcut_noturn_debuddyperdet_4way_set%d_2pass_wpoly_500_U_and_input.fits'%i for i in xrange(4)] 
+
+weightDir_ar2_s2  =  '/project2/r/rbond/tlouis/ACTPOL_Season2/Paper/Maps/Jon/Final/deep56_S2_c7v5_AR2/'
+weightFiles_ar2_s2 = [weightDir_ar2_s2+'deep56_S2_c7v5_AR2_night_nomoon_srcsub_srcpoint_noisecut_fixpickupcut_noturn_debuddyperdet_4way_set%d_2pass_weights_I.fits'%i for i in xrange(4)]
+
+
+mask='/scratch2/r/rbond/tlouis/ACTPOL_S2_Sims/mask/mask_05.00arcmin_0.015Jy.fits'
+
+ellStart=2
+applyPixelWeights=True
+useSmoothedWeight=False
+doPadding=False
+applyMask=True
+
+verticalkMaskLimits=[-90,90]
+horizontalkMaskLimits=[-50,50]
+
+
+
+beam_ar2_s2 ='beam_tform_160201_2014_pa2_jitter_CMB_deep56_thibaut.txt'
+
+
+
+cosineApodization={'apply':True,'lenApod':120,'pad':0}
+
+highPassCosSqFilter = {'apply':False,'lMin':100,'lMax':500}
+
+prewhitener = {'apply':True,'radius':1.3,'addBackFraction':0.02,'gaussFWHM':0.0}
+
+powerOfL=0
+
+trimAtL=9000
+
+Write2dSpectrum={'apply':True,'lTrim':3000}
+
+
+mcmFileRoot='mcm_mask10amin'
+
+
+nfork=1
+
+
+
+binningFile='BIN_ACTPOL_50_4'
+theoryDir = '/scratch2/r/rbond/tlouis/ACTPOL_S2_Sims/theoryFiles/'                                       
+theoryFile = theoryDir+'/bode_almost_wmap5_lmax_1e4_lensedCls.dat'
+
+calibration_T_ar2_s2 = 0.998
+calibration_Pol_ar2_s2 = 0.995
+
+
+#Plotting
+
+xRange_TT=[100,10000]
+yRange_TT=[10**-2,10000]
+
+xRange_TE=[0,8000]
+yRange_TE=[-150,150]
+
+xRange_BB=[100,8000]
+yRange_BB=[10**-3,2*10**1]
+
+xRange_EE=[100,8000]
+yRange_EE=[10**-4,2*10**2]
+
+
+
+switch=True  #For Plotting (should only be used when we cross the ra=0 axis)
+valueRangePol=[-400,400]
+
