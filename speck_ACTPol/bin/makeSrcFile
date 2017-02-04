@@ -1,0 +1,28 @@
+#!/usr/bin/env python
+
+from flipper import *
+
+
+fullpath = sys.argv[1]
+
+file = fullpath.split("/")[-1]
+path = os.path.dirname(fullpath)
+print file
+
+
+freq = file.split('_')[1]
+print freq
+
+print "mapDir_%s = '%s/'"%(freq,path)
+
+file2 = file.replace('set_0','set_%d')
+#print file2
+
+print "mapFiles_%s = [mapDir_%s+'%s'"%(freq,freq,file2)+"%i for i in xrange(4)]"
+lastbit = file2.split("_")[-1]
+
+file2 = file2.replace(lastbit,'weights.fits')
+print "weightFiles_%s = [mapDir_%s+'%s'"%(freq,freq,file2)+"%i for i in xrange(4)]"
+
+
+

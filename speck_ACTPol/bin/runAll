@@ -1,0 +1,11 @@
+cutPatches global.dict 
+timewaste 300
+computeModeCouplingMatrices global.dict 
+timewaste 1500
+compileSpectra global.dict 
+timewaste 300
+combineAndCalibrateSpectra global.dict 
+timewaste 100
+computeAnalyticError global.dict 
+plotSpectrum global.dict
+plotSignalAndNoise . . 

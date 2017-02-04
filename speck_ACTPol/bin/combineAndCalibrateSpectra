@@ -1,0 +1,105 @@
+#!/usr/bin/env python
+from flipper import *
+import speckMisc
+p = flipperDict.flipperDict()
+p.read_from_file(sys.argv[1])
+
+
+
+freqs = p['frequencies']
+patchDir = "patches"
+specDir = 'spectra/'
+
+if len(sys.argv)> 2:
+    specDir = 'spectra_%s/'%sys.argv[2]
+    patchDir = 'patches_%s'%sys.argv[2]
+        
+
+nDivs, nPatches = speckMisc.getPatchStats(patchDir,freqs[0])
+print "Found %d patches with %d sub-season divisions in each"%(nPatches, nDivs)
+
+
+#Combine Autos
+clAutos = {freqs[0]:[],freqs[-1]:[]}
+
+for freq in freqs:
+    clAutoPatch = []
+    for iPatch in xrange(nPatches):
+        lbin,clbin,binWeight = numpy.loadtxt("%s/clBinAutoMean_%dX%d_%03d.dat"\
+                                             %(specDir,freq,freq,iPatch),unpack=True)
+        clAutoPatch += [clbin*p['calibration_%d'%freq]**2]
+        clAutos[freq] += [clbin*p['calibration_%d'%freq]**2]
+    clAutoMean = numpy.mean(clAutoPatch, axis=0)
+    fName = "%s/clBinAutoGlobalMean_%dX%d.dat"%(specDir,freq,freq)
+    speckMisc.writeBinnedSpectrum(lbin,clAutoMean,binWeight,fName)
+
+print clAutos
+
+clCross = []
+clAutoCF = [] #Cross- freq autos
+for iPatch in xrange(nPatches):
+    lbin,clbin,binWeight = numpy.loadtxt("%s/clBinCrossMean_%dX%d_%03d.dat"\
+                                         %(specDir,freqs[0],freqs[-1],iPatch),\
+                                         unpack=True)
+    clCross += [clbin*p['calibration_%d'%freqs[0]]*p['calibration_%d'%freqs[-1]]]
+
+    lbin,clbin,binWeight = numpy.loadtxt("%s/clBinAutoMean_%dX%d_%03d.dat"\
+                                         %(specDir,freqs[0],freqs[-1],iPatch),\
+                                         unpack=True)
+    clAutoCF += [clbin*p['calibration_%d'%freqs[0]]*p['calibration_%d'%freqs[-1]]]
+
+clCrossMean = numpy.mean(clCross,axis=0)
+fName = "%s/clBinCrossGlobalMean_%dX%d.dat"%(specDir,freqs[0],freqs[-1])
+speckMisc.writeBinnedSpectrum(lbin,clCrossMean,binWeight,fName)
+
+
+
+clAutoMean = numpy.mean(clAutoCF,axis=0)
+fName = "%s/clBinAutoGlobalMean_%dX%d.dat"%(specDir,freqs[0],freqs[-1])
+speckMisc.writeBinnedSpectrum(lbin,clAutoMean,binWeight,fName)
+
+
+# Now the  cross-spectrum weighted by patch weights
+
+clPatchWeights =[]
+
+X = numpy.loadtxt(p["theoryFile"])
+lTh = X[:,0]
+clTh = X[:,1]*(2*numpy.pi)/(lTh*(lTh+1.))
+
+# binned theory
+
+lbTh, cbTh = fftTools.binTheoryPower(lTh,clTh,p['binningFile'])
+lL,lU,lC = fftTools.readBinningFile(p['binningFile'])
+
+print len(cbTh), len(lbin)
+
+id = numpy.where(lU < p['trimAtL'])
+
+cbTh = cbTh[id]
+print len(cbTh), len(lbin)
+print lbTh[id]
+print lbin
+if len(cbTh) < len(lbin):
+    cbTh.append(numpy.zeros(len(lbin)-len(cbTh)))
+print len(cbTh), len(lbin)
+clCrossWeighted = []
+wls = []
+for iPatch in xrange(nPatches):
+
+    Nl_aa = clAutos[freqs[0]][iPatch] - clCross[iPatch]
+    Nl_bb = clAutos[freqs[-1]][iPatch] - clCross[iPatch]
+    Nl_ab = clAutoCF[iPatch] - clCross[iPatch]
+    
+    theta = 2*cbTh**2+ cbTh*(Nl_aa+Nl_bb)/nDivs + 2/nDivs*cbTh*Nl_ab + \
+            (Nl_aa*Nl_bb+Nl_ab*Nl_ab)/(nDivs*(nDivs-1))
+    theta /= (2*binWeight)
+    fName = "%s/sigmaSqBin_%dX%d_%03d.dat"%(specDir,freqs[0],freqs[-1],iPatch)
+    speckMisc.writeBinnedSpectrum(lbin,theta,binWeight,fName)
+    clCrossWeighted += [clCross[iPatch]/theta]
+    wls += [1./theta]
+    
+clCrossWeightedMean = numpy.sum(clCrossWeighted,axis=0)/numpy.sum(wls,axis=0)
+
+fName = "%s/clBinCrossGlobalWeightedMean_%dX%d.dat"%(specDir,freqs[0],freqs[-1])
+speckMisc.writeBinnedSpectrum(lbin,clCrossWeightedMean,binWeight,fName)

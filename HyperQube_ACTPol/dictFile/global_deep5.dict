@@ -1,0 +1,81 @@
+Ra0Array= [-7.5]
+Ra1Array= [2.7]
+Dec0Array = [-3]
+Dec1Array = [3.8]
+
+buffer=0.4
+
+
+mapDir_0_T  = '/Users/louist/Desktop/Project/actpol/Maps/JonMaps/4Ways_polyfix_groundsub/'
+mapDir_0_Pol  = '/Users/louist/Desktop/Project/actpol/Maps/JonMaps/4Ways_polyfix_groundsub_noT/'
+
+
+mapFiles_0_T = [mapDir_0_T+'deep5_rolocuts_iqu_31Jan14_c4_notch_cal_tauv4_cutsfit_azilt_2pass_4way_set_%d_night_srcsub_polyfix_groundsub_1000_wpoly_I.fits'%i for i in xrange(4)]
+mapFiles_0_Q = [mapDir_0_Pol+'deep5_rolocuts_iqu_31Jan14_c4_notch_cal_tauv4_cutsfit_azilt_2pass_4way_set_%d_night_srcsub_polyfix_groundsub_az_20_noT_1000_wpoly_Q.fits'%i for i in xrange(4)]
+mapFiles_0_U = [mapDir_0_Pol+'deep5_rolocuts_iqu_31Jan14_c4_notch_cal_tauv4_cutsfit_azilt_2pass_4way_set_%d_night_srcsub_polyfix_groundsub_az_20_noT_1000_wpoly_U.fits'%i for i in xrange(4)]
+
+weightDir_0 = '/Users/louist/Desktop/Project/actpol/Maps/JonMaps/4Ways_polyfix/'
+
+weightFiles_0 = [weightDir_0+'deep5_rolocuts_iqu_31Jan14_c4_notch_cal_tauv4_cutsfit_azilt_2pass_4way_set_%d_night_srcsub_polyfix_weights_I.fits'%i for i in xrange(4)]
+
+mask_0='/Users/louist/Desktop/Project/actpol/Maps/Mask/FinalMask/patch5_mask_05.00arcmin_0.015Jy.fits'
+
+
+applyPixelWeights=True
+useSmoothedWeight=False
+doPadding=False
+applyMask=True
+verticalkMaskLimits=[-90,90]
+
+cosineApodization={'apply':True,'lenApod':80,'pad':0}
+
+beam1d= {'apply':True,'file':'beam_tform_140206_jitter_deep5_thibaut.txt'}
+
+highPassCosSqFilter = {'apply':True,'lMin':100,'lMax':500}
+
+prewhitener = {'apply':True,'radius':1.3,'addBackFraction':0.02,'gaussFWHM':0.0}
+
+powerOfL=0
+
+trimAtL=9000
+
+Write2dSpectrum={'apply':True,'lTrim':3000}
+
+
+mcmFileRoot='mcm_mask10amin'
+
+
+nfork=1
+
+binningFile='BIN_ACTPOL_50_4'
+theoryDir = '/Users/thibaut/Desktop/ACT/TheoryFiles/'
+theoryFile = theoryDir+'/bode_almost_wmap5_lmax_1e4_lensedCls.dat'
+
+
+calibration_T=1.03
+calibration_Pol=1.03
+
+#Plotting
+
+xRange_TT=[100,10000]
+yRange_TT=[10**-2,10000]
+
+xRange_TE=[0,8000]
+yRange_TE=[-150,150]
+
+xRange_BB=[100,8000]
+yRange_BB=[10**-3,2*10**1]
+
+xRange_EE=[100,8000]
+yRange_EE=[10**-4,2*10**2]
+
+
+
+#Instrument noise (not in use now)
+instrument_info={'alpha':2, 'Scanning_velocity' :60., 'Knee_frequency_inHz' :10.,'Noise_level':10.}
+instrument_infoT={'alpha':2, 'Scanning_velocity' :60., 'Knee_frequency_inHz' :10.,'Noise_level':10.}
+scanning_info={'xfilter_time_constant':10,'yfilter_time_constant':10,'afilter_time_constant':10,'bfilter_time_constant':10,'scanning_velocity':1}
+
+#Lensing
+theoryScal = 'bode_almost_wmap5_lmax_1e4_scalCls.dat' 
+upgradeFactor=3.0 

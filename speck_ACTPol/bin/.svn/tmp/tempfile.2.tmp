@@ -1,0 +1,210 @@
+#!/usr/bin/env python
+
+from flipper import *
+from scipy.interpolate import splrep,splev
+import scipy
+import os
+import pickle
+import time
+import speckMisc
+
+def weightedBinInAnnuli(p2d,weightMap,binningFile,trimAtL,powerOfL):
+    binLo,binHi,binCent = fftTools.readBinningFile(binningFile)
+    id = numpy.where(binHi<trimAtL)
+    binHi = binHi[id]
+    binLo = binLo[id]
+    binCent = binCent[id]
+    binnedPower = binCent.copy()*0.
+    binCount = binCent.copy()*0.
+    weightedBincount = binCent.copy()
+    modIntLMap = numpy.array(p2d.modLMap + 0.5,dtype='int64')
+    for ibin in xrange(len(binHi)):
+        loc = numpy.where((modIntLMap >= binLo[ibin]) & (modIntLMap <= binHi[ibin]))
+        binMap = p2d.powerMap.copy()*0.
+        binMap[loc] = weightMap[loc]
+        binnedPower[ibin] = numpy.sum(p2d.powerMap*binMap*p2d.modLMap**powerOfL)/numpy.sum(binMap)
+        binCount[ibin] = len(loc[0])
+        weightedBincount[ibin] = 1./(numpy.sum(weightMap[loc]**2)/(numpy.sum(weightMap[loc]))**2)
+        #print binCount[ibin]/weightedBincount
+    return binLo,binHi,binCent,binnedPower, weightedBincount/2.
+
+
+def get2DSpectrum(ma,mb,taper,gaussApod,mask=None,pixelWeight=None):
+
+    if taper['apply'] and gaussApod['apply']:
+        raise ValueError, "Both taper and Gaussian Apodization cannot be applied."+\
+              "Use one or the other"
+    
+    m0 = ma.copy()
+    m1 = mb.copy()
+    
+    if mask!=None:
+        m0.data[:] *= mask.data[:]
+        m1.data[:] *= mask.data[:]
+    if pixelWeight != None:
+        m0.data[:] *= pixelWeight.data[:]
+        m1.data[:] *= pixelWeight.data[:]
+    if taper['apply']:
+        
+        p2d = fftTools.powerFromLiteMap(m0,m1,applySlepianTaper=taper['apply'],\
+                                        nresForSlepian=taper['nres'])
+        
+    elif gaussApod['apply']:
+        gp = gaussApod.copy()
+        gp.pop('apply')
+        apod = m0.createGaussianApodization(**gp)
+        m0.data[:] *= apod.data[:]
+        m1.data[:] *= apod.data[:]
+        p2d = fftTools.powerFromLiteMap(m0,m1)
+    else:
+        p2d = fftTools.powerFromLiteMap(m0,m1,applySlepianTaper=False)
+        
+    return p2d
+
+
+if __name__ == "__main__":
+    p = flipperDict.flipperDict()
+    p.read_from_file(sys.argv[1])
+
+    specDir = 'spectra/'
+    patchDir = "patches"
+    if len(sys.argv)> 2:
+        specDir = 'spectra_%s/'%sys.argv[2]
+        patchDir = 'patches_%s'%sys.argv[2]
+        
+    
+    freqs = p['frequencies']
+    taper = p['taper']
+    gaussApod = p['gaussianApodization']
+    applyMask = p['applyMask']
+    
+        
+    nDivs, nPatches = speckMisc.getPatchStats(patchDir,freqs[0])
+    
+    print "Found %d patches with %d sub-season divisions in each"%(nPatches, nDivs)
+    
+    if taper['apply'] and gaussApod['apply']:
+        raise ValueError, "Both taper and Gaussian Apodization cannot be applied."+\
+              "Use one or the other"
+    
+    
+    trimAtL = p['trimAtL']
+    
+    
+    try:
+        os.makedirs(specDir)
+    except:
+        pass
+    
+    lU,lL,lCen = fftTools.readBinningFile(p['binningFile'])
+    ii = numpy.where(lU<p['trimAtL'])
+    
+    #beam transfer (used in slaved spec only)
+    binnedBeamWindow = []
+    for freq in freqs:
+        Bb = speckMisc.getBinnedBeamTransfer(p['beamFile_%d'%freq],p['binningFile'],trimAtL)
+        binnedBeamWindow += [Bb]
+    
+    hpfDict = p['highPassCosSqFilter']
+    filter = 1.0
+    if hpfDict['apply']:
+        print "Will take off the cos^2 high pass filter"
+        filter = speckMisc.getBinnedInvCosSqFilter(hpfDict['lMin'],hpfDict['lMax'],p['binningFile'],trimAtL)
+        
+        
+    
+    for iPatch in xrange(nPatches):
+        pid = os.fork()
+        if pid == 0:
+        
+            mbb = pickle.load(open('mcm/'+p['mcmFileRoot']+'_%03d.pkl'%iPatch,mode="r"))
+            mbbInv = scipy.linalg.inv(mbb)
+                
+            if applyMask:
+                mask = liteMap.liteMapFromFits("%s/mask%03d"%(patchDir,iPatch))
+            else:
+                mask = None
+            pixW = None
+            if p['applyPixelWeights']:
+                pixW = (liteMap.liteMapFromFits("%s/totalWeightMap_%03d"%(patchDir,iPatch)))
+                
+                
+            binWeightMap = pickle.load(open('noiseAndWeights/weightMap%03d.pkl'%iPatch,mode="r"))
+
+            # Get the auto spectra first
+            ifreq = 0 
+            for freq in freqs:
+                clAutoPatch = []
+                for i in xrange(nDivs):
+                    print "In patch: %03d, computing %dx%d spectrum: %d%d "%(iPatch,freq,freq,i,i)
+                    m0 = liteMap.liteMapFromFits("%s/patch_%d_%03d_%d"\
+                                                 %(patchDir,freq,iPatch,i))
+                    area = m0.Nx*m0.Ny*m0.pixScaleX*m0.pixScaleY
+                    p2d = get2DSpectrum(m0,m0,taper,gaussApod,mask=mask,pixelWeight=pixW)
+
+                    lL,lU,lbin,clbin,binCount = weightedBinInAnnuli(p2d,\
+                                                                    binWeightMap.powerMap,\
+                                                                    p['binningFile'],p['trimAtL'],\
+                                                                    p['powerOfL'])
+                    clbinDecoup = numpy.dot(mbbInv,clbin)*area*filter**2
+                    # There is an additional correction for the autos as MCM had a transfer
+                    # function B_l_AR1*B_l_AR_2
+                    clbinDecoup *= binnedBeamWindow[ifreq-1]/binnedBeamWindow[ifreq]
+                    
+                    fName = "%s/clBinDecoup_%dX%d_%03d_%d%d.dat"%(specDir,freq,freq,iPatch,i,i)
+                    speckMisc.writeBinnedSpectrum(lbin,clbinDecoup,binCount,fName)
+
+                    clAutoPatch += [clbinDecoup]
+
+                clAutoPatchMean = numpy.mean(clAutoPatch,axis=0)
+                fName = "%s/clBinAutoMean_%dX%d_%03d.dat"%(specDir,freq,freq,iPatch)
+                speckMisc.writeBinnedSpectrum(lbin,clAutoPatchMean,binCount,fName)
+                
+                ifreq += 1
+            
+            # Now do the cross-frequency spectra
+            clCrossPatch = []
+            clAutoPatch = [] #cross-freq auto spec
+            for i in xrange(nDivs):
+                m0 = liteMap.liteMapFromFits("%s/patch_%d_%03d_%d"\
+                                             %(patchDir,freqs[0],iPatch,i))
+                area = m0.Nx*m0.Ny*m0.pixScaleX*m0.pixScaleY
+                for j in xrange(nDivs):
+                    #if i == j: continue
+                    if freqs[0] == freqs[-1] and i<=j: continue
+                    print "In patch: %03d, computing %dx%d spectrum: %d%d "%(iPatch,freqs[0],freqs[-1],i,j)
+                    m1 = liteMap.liteMapFromFits("%s/patch_%d_%03d_%d"\
+                                                 %(patchDir,freqs[-1],iPatch,j))
+                    
+                    p2d = get2DSpectrum(m0,m1,taper,gaussApod,mask=mask,pixelWeight=pixW)
+                    lL,lU,lbin,clbin,binCount = weightedBinInAnnuli(p2d,\
+                                                                    binWeightMap.powerMap,\
+                                                                    p['binningFile'],p['trimAtL'],\
+                                                                    p['powerOfL'])
+                    clbinDecoup = numpy.dot(mbbInv,clbin)*area*filter**2
+                    fName = "%s/clBinDecoup_%dX%d_%03d_%d%d.dat"%(specDir,freqs[0],freqs[-1],iPatch,i,j)
+                    speckMisc.writeBinnedSpectrum(lbin,clbinDecoup,binCount,fName)
+                    if i != j :
+                        clCrossPatch += [clbinDecoup]
+                    else:
+                        clAutoPatch += [clbinDecoup]
+            #print clCrossPatch
+            if nDivs > 1:
+                clCrossPatchMean = numpy.mean(clCrossPatch,axis=0)
+            else:
+                clCrossPatchMean = clbinDecoup
+            #print clCrossPatchMean
+            fName = "%s/clBinCrossMean_%dX%d_%03d.dat"%(specDir,freqs[0],freqs[-1],iPatch)
+            speckMisc.writeBinnedSpectrum(lbin,clCrossPatchMean,binCount,fName)
+
+            if len(clAutoPatch)>0:
+                clAutoPatchMean = numpy.mean(clAutoPatch,axis=0)
+                fName = "%s/clBinAutoMean_%dX%d_%03d.dat"%(specDir,freqs[0],freqs[-1],iPatch)
+                speckMisc.writeBinnedSpectrum(lbin,clAutoPatchMean,binCount,fName)
+            
+            break
+        elif (iPatch+1) %p['nfork'] == 0 or (iPatch+1) == nPatches:
+            os.waitpid(pid,0)
+            
+            
+       

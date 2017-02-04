@@ -1,0 +1,48 @@
+Beam release 150608 for ACTpol [PA1,PA2] 2014
+ML (adapted from MFH) - Mon Jun  8 18:38:12 2015
+
+1. This beam release consists of paired ell-space beam function and
+real-space radial profile pairs.
+
+  beam_tform_150608_2014_<array>_<suffix>.txt   -- ell-space beam transform
+  beam_profile_150608_2014_<array>_<suffix>.txt -- real space radial profile
+
+
+2. The suffices in use here are:
+
+  instant -- instantaneous beam, only appropriate for analysis of
+      single TODs or single-TOD maps.
+
+  jitter -- beam suitable for use on field maps, because pointing
+      variance correction and uncertainty have been applied. You must
+      take into account the pixel window function separately.
+
+
+3. The format of the ell-space beam transforms is:
+
+  Column 1: ell
+  Column 2: B_ell
+  Columns 3,4,...: dB1_ell,  dB2_ell, ...
+
+B_ell is the harmonic transform of the real space beam, assumed to be
+azimuthally symmetric.  The angular power spectrum "window function"
+due to the instrument point spread function is proportional to the
+square of B_ell.
+
+Each dB#_ell is an independent mode of the uncertainty in B_ell.  To
+average a result over the ensemble of beam realizations, generate
+trial beams
+
+  B' = B + a1 * dB1 + a2 * dB2 + ...
+
+where (a1, a2, ...) are drawn from the normal distribution with mean 0
+and variance 1.
+
+The normalization ell and error mode pivot ell can be found in the
+comments of each beam_tform file.
+
+
+4. The format of the real space radial profile is:
+
+  Column 1: radius, in degrees
+  Column 2: beam profile, normalized to 1 at radius = 0
